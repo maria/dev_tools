@@ -1,0 +1,45 @@
+- hosts: default
+
+  vars:
+    os_packages:
+      - git
+      - nginx
+      - sqlite3
+      - python-pip
+
+  tasks:
+
+    - name: Install dependencies
+      apt: pkg={{ item }} state=present
+      with_items: os_packages
+      sudo: yes
+
+    - name: Clone app repo on local
+      git: repo=https://github.com/maria/SkillHub.git dest=/home/vagrant/SkillHub
+
+    - name: Install project Python packages
+      shell: pip install -r dev-requirements.txt chdir=/home/vagrant/SkillHub/skillhub
+      sudo: yes
+
+    - name: Set local settings
+      lineinfile:
+        line: "{{ lookup('file', '../../SkillHub/skillhub/settings_local.py.example') }}"
+        dest: /home/vagrant/SkillHub/skillhub/settings_local.py
+        state: present
+        create: yes
+
+    - name: Copy nginx config
+      copy: src=minideb.conf dest=/etc/nginx/sites-enabled/default
+      sudo: yes
+
+    - name: Create simlink for nginx config
+      file: path=/etc/nginx/sites-available/default state=absent
+      sudo: yes
+
+    - name: Create simlink for nginx config
+      shell: ln -s /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
+      sudo: yes
+
+    - name: Restart nginx
+      service: name=nginx state=restarted
+      sudo: yes
